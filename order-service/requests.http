@@ -1,0 +1,23 @@
+### 1. Создать новый заказ (POST)
+POST http://localhost:8082/api/v1/orders
+Content-Type: application/json
+
+{
+  "customerId": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
+  "currency": "RUB",
+  "items": [
+    {
+      "productId": "7b52479e-3162-4b2a-8959-195c80d46812",
+      "quantity": 2,
+      "price": 1500.50
+    },
+    {
+      "productId": "9c11867e-1234-4b2a-8959-995c80d46899",
+      "quantity": 1,
+      "price": 300.00
+    }
+  ]
+}
+
+### 2. Получить заказ по ID (замените UUID на тот, что вернется в ответе выше)
+GET http://localhost:8082/api/v1/orders/1915538c-a7e9-4e16-b8e8-2d05839eb8d0
