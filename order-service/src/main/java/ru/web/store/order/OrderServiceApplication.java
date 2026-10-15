@@ -1,13 +1,11 @@
-package ru.web.store;
+package ru.web.store.order;
 
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 
 @SpringBootApplication
-public class StoreApplication {
-
+public class OrderServiceApplication {
 	public static void main(String[] args) {
-		SpringApplication.run(StoreApplication.class, args);
+		SpringApplication.run(OrderServiceApplication.class, args);
 	}
-
 }

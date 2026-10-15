@@ -13,7 +13,7 @@ services:
       POSTGRES_DB: postgres
       POSTGRES_MULTIPLE_DATABASES: auth_db,order_db,inventory_db,payment_db,delivery_db
     ports:
-      - "5432:5432"
+      - "5433:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./init-multiple-dbs.sh:/docker-entrypoint-initdb.d/init-multiple-dbs.sh
