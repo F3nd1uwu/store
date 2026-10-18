@@ -14,3 +14,7 @@ dependencies {
     compileOnly("org.projectlombok:lombok")
     annotationProcessor("org.projectlombok:lombok")
 }
+
+tasks.named<Jar>("jar") {
+    enabled = false
+}
