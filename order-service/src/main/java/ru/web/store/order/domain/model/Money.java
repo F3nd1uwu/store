@@ -2,7 +2,7 @@ package ru.web.store.order.domain.model;
 
 import java.math.BigDecimal;
 
-public record Money(BigDecimal amount, String currency) {
+public record Money(BigDecimal amount, String currency) implements java.io.Serializable {
     public Money {
         if (amount == null || amount.compareTo(BigDecimal.ZERO) < 0) {
             throw new IllegalArgumentException("Сумма не может быть отрицательной или null");

@@ -3,7 +3,8 @@ package ru.web.store.order.domain.model;
 import java.util.Objects;
 import java.util.UUID;
 
-public class OrderItem {
+public class OrderItem implements java.io.Serializable {
+    private static final long serialVersionUID = 1L;
     private final UUID id;
     private final UUID productId;
     private final int quantity;

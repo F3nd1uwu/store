@@ -7,7 +7,8 @@ import java.util.Collections;
 import java.util.List;
 import java.util.UUID;
 
-public class Order {
+public class Order implements java.io.Serializable {
+    private static final long serialVersionUID = 1L;
     private final UUID id;
     private final UUID customerId;
     private final List<OrderItem> items;
