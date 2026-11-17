@@ -1,0 +1,5 @@
+FROM eclipse-temurin:21-jre-alpine
+ARG SERVICE
+WORKDIR /app
+COPY ${SERVICE}/build/libs/*.jar app.jar
+ENTRYPOINT ["java", "-jar", "app.jar"]

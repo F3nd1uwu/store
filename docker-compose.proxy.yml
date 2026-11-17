@@ -1,0 +1,11 @@
+services:
+  gateway:
+    networks:
+      store-network: {}
+      proxy-network:
+        aliases:
+          - store-yasakovd-api
+networks:
+  proxy-network:
+    external: true
+    name: ${NPM_NETWORK:?Set NPM_NETWORK to the existing Nginx Proxy Manager network}

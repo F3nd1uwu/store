@@ -1,74 +1,56 @@
 package ru.web.store.order.application.usecase;
 
+import java.util.*;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import ru.web.store.contracts.StoreEvent;
 import ru.web.store.order.application.dto.CreateOrderCommand;
-import ru.web.store.order.domain.model.Money;
-import ru.web.store.order.domain.model.Order;
-import ru.web.store.order.domain.model.OrderItem;
+import ru.web.store.order.application.port.*;
+import ru.web.store.order.domain.model.*;
 import ru.web.store.order.domain.repository.OrderRepository;
-import ru.web.store.order.infrastructure.persistence.SpringDataOutboxRepository;
-import ru.web.store.order.infrastructure.persistence.entity.OutboxEventJpaEntity;
-
-import java.time.Instant;
-import java.util.List;
-import java.util.UUID;
 
 @Service
 public class CreateOrderUseCase {
+  private final OrderRepository orders;
+  private final OrderEvents events;
+  private final CatalogPort catalog;
 
-    private final OrderRepository orderRepository;
-    private final SpringDataOutboxRepository outboxRepository;
+  public CreateOrderUseCase(OrderRepository orders, OrderEvents events, CatalogPort catalog) {
+    this.orders = orders;
+    this.events = events;
+    this.catalog = catalog;
+  }
 
-    public CreateOrderUseCase(OrderRepository orderRepository, SpringDataOutboxRepository outboxRepository) {
-        this.orderRepository = orderRepository;
-        this.outboxRepository = outboxRepository;
-    }
-
-    @Transactional
-    public Order execute(CreateOrderCommand command) {
-        // 1. Создаем доменный агрегат заказа
-        List<OrderItem> orderItems = command.items().stream()
-                .map(item -> new OrderItem(
-                        UUID.randomUUID(),
-                        item.productId(),
-                        item.quantity(),
-                        Money.of(item.unitPrice(), command.currency())
-                ))
-                .toList();
-
-        Order order = new Order(
-                UUID.randomUUID(),
-                command.customerId(),
-                orderItems,
-                command.currency()
-        );
-
-        // 2. Сохраняем заказ в таблицу 'orders'
-        Order savedOrder = orderRepository.save(order);
-
-        // 3. Формируем JSON события для брокера Kafka
-        String jsonPayload = String.format(
-                "{\"orderId\":\"%s\",\"customerId\":\"%s\",\"totalAmount\":%s,\"currency\":\"%s\",\"status\":\"%s\"}",
-                savedOrder.getId(),
-                savedOrder.getCustomerId(),
-                savedOrder.getTotalAmount().amount(),
-                savedOrder.getTotalAmount().currency(),
-                savedOrder.getStatus()
-        );
-
-        // 4. В ЭТОЙ ЖЕ ТРАНЗАКЦИИ сохраняем событие в 'outbox_events' со статусом PENDING
-        OutboxEventJpaEntity outboxEvent = new OutboxEventJpaEntity(
-                UUID.randomUUID(),
-                "ORDER",
-                savedOrder.getId(),
-                "ORDER_CREATED",
-                jsonPayload,
-                "PENDING",
-                Instant.now()
-        );
-        outboxRepository.save(outboxEvent);
-
-        return savedOrder;
-    }
+  @Transactional
+  public Order execute(CreateOrderCommand command) {
+    var items =
+        command.items().stream()
+            .map(
+                i -> {
+                  var quote = catalog.quote(i.productId());
+                  if (!quote.currency().equals(command.currency()))
+                    throw new IllegalArgumentException("Currency mismatch");
+                  return new OrderItem(
+                      UUID.randomUUID(),
+                      i.productId(),
+                      i.quantity(),
+                      Money.of(quote.price(), quote.currency()));
+                })
+            .toList();
+    Order order =
+        orders.save(new Order(UUID.randomUUID(), command.customerId(), items, command.currency()));
+    events.append(
+        new StoreEvent(
+            UUID.randomUUID(),
+            "ORDER_CREATED",
+            order.getId(),
+            order.getCustomerId(),
+            order.getTotalAmount().amount(),
+            command.currency(),
+            items.stream()
+                .map(i -> new StoreEvent.Line(i.getProductId(), i.getQuantity()))
+                .toList(),
+            null));
+    return order;
+  }
 }

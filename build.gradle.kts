@@ -30,3 +30,19 @@ subprojects {
 		"testImplementation"("org.springframework.boot:spring-boot-starter-test")
 	}
 }
+subprojects {
+ tasks.withType<Test>().configureEach { useJUnitPlatform() }
+ dependencies { "testRuntimeOnly"("org.junit.platform:junit-platform-launcher") }
+}
+
+project(":contracts") {
+ tasks.named<org.springframework.boot.gradle.tasks.bundling.BootJar>("bootJar") { enabled = false }
+ tasks.named<Jar>("jar") { enabled = true }
+}
+
+subprojects {
+ if (name == "domain" || name == "application") {
+  tasks.named<org.springframework.boot.gradle.tasks.bundling.BootJar>("bootJar") { enabled = false }
+  tasks.named<Jar>("jar") { enabled = true }
+ }
+}

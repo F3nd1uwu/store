@@ -9,8 +9,14 @@ import org.springframework.data.redis.connection.RedisConnectionFactory;
 @Configuration
 public class RedisConfig {
 
-    @Bean
-    public CacheManager cacheManager(RedisConnectionFactory connectionFactory) {
-        return RedisCacheManager.create(connectionFactory);
-    }
+  @Bean
+  public CacheManager cacheManager(RedisConnectionFactory connectionFactory) {
+    return RedisCacheManager.builder(connectionFactory)
+        .transactionAware()
+        .cacheDefaults(
+            org.springframework.data.redis.cache.RedisCacheConfiguration.defaultCacheConfig()
+                .entryTtl(java.time.Duration.ofMinutes(10))
+                .disableCachingNullValues())
+        .build();
+  }
 }

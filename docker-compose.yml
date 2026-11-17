@@ -1,109 +1,325 @@
-version: '3.8'
-
-services:
-  # ==========================================
-  # База данных PostgreSQL (общий сервер с БД под каждый сервис)
-  # ==========================================
-  postgres:
-    image: postgres:16-alpine
-    container_name: store-postgres
-    environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgrespassword
-      POSTGRES_DB: postgres
-      POSTGRES_MULTIPLE_DATABASES: auth_db,order_db,inventory_db,payment_db,delivery_db
-    ports:
-      - "5433:5432"
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-      - ./init-multiple-dbs.sh:/docker-entrypoint-initdb.d/init-multiple-dbs.sh
-    networks:
-      - store-network
-
-  # ==========================================
-  # Кеш Redis
-  # ==========================================
-  redis:
-    image: redis:7-alpine
-    container_name: store-redis
-    ports:
-      - "6379:6379"
-    volumes:
-      - redis_data:/data
-    networks:
-      - store-network
-
-  # ==========================================
-  # Брокер сообщений Apache Kafka (KRaft)
-  # ==========================================
-  kafka:
-    image: confluentinc/cp-kafka:7.5.0
-    container_name: store-kafka
-    ports:
-      - "9092:9092"
-      - "29092:29092"
-    environment:
-      KAFKA_NODE_ID: 1
-      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: 'CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT'
-      KAFKA_ADVERTISED_LISTENERS: 'PLAINTEXT://kafka:29092,PLAINTEXT_HOST://localhost:9092'
-      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
-      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
-      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
-      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
-      KAFKA_PROCESS_ROLES: 'broker,controller'
-      KAFKA_CONTROLLER_QUORUM_VOTERS: '1@kafka:29093'
-      KAFKA_LISTENERS: 'PLAINTEXT://0.0.0.0:29092,CONTROLLER://0.0.0.0:29093,PLAINTEXT_HOST://0.0.0.0:9092'
-      KAFKA_INTER_BROKER_LISTENER_NAME: 'PLAINTEXT'
-      KAFKA_CONTROLLER_LISTENER_NAMES: 'CONTROLLER'
-      KAFKA_LOG_DIRS: '/tmp/kraft-combined-logs'
-      CLUSTER_ID: 'MkU3OEVBNTcwNTJENDM2Qk'
-    networks:
-      - store-network
-
-  # ==========================================
-  # UI для Kafka
-  # ==========================================
-  kafka-ui:
-    image: provectuslabs/kafka-ui:latest
-    container_name: store-kafka-ui
-    ports:
-      - "8085:8080"
-    environment:
-      KAFKA_CLUSTERS_0_NAME: local-cluster
-      KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:29092
-    depends_on:
-      - kafka
-    networks:
-      - store-network
-
-  # ==========================================
-  # Микросервис заказов (Order Service)
-  # ==========================================
-  order-service:
-    build:
-      context: .
-      dockerfile: order-service/Dockerfile
-    container_name: store-order-service
-    ports:
-      - "8082:8082"
-    environment:
-      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/order_db
-      SPRING_DATASOURCE_USERNAME: postgres
-      SPRING_DATASOURCE_PASSWORD: postgrespassword
-      SPRING_DATA_REDIS_HOST: redis
-      SPRING_DATA_REDIS_PORT: 6379
-      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:29092
-    depends_on:
-      - postgres
-      - kafka
-      - redis
-    networks:
-      - store-network
-
-networks:
-  store-network:
-    driver: bridge
-
-volumes:
-  postgres_data:
-  redis_data:
+{
+  "networks": {
+    "store-network": {
+      "name": "store_store-network",
+      "driver": "bridge",
+      "ipam": {}
+    }
+  },
+  "services": {
+    "auth-service": {
+      "build": {
+        "context": ".",
+        "dockerfile": "auth-service/Dockerfile"
+      },
+      "command": null,
+      "container_name": "store-auth-service",
+      "depends_on": {
+        "postgres": {
+          "condition": "service_healthy"
+        }
+      },
+      "entrypoint": null,
+      "environment": {
+        "JWT_SECRET": "${JWT_SECRET:-local-development-secret-key-change-before-deploy-123456}",
+        "SPRING_DATASOURCE_PASSWORD": "postgrespassword",
+        "SPRING_DATASOURCE_URL": "jdbc:postgresql://postgres:5432/auth_db",
+        "SPRING_DATASOURCE_USERNAME": "postgres"
+      },
+      "networks": {
+        "store-network": null
+      },
+      "ports": [
+        {
+          "mode": "ingress",
+          "target": 8081,
+          "published": "8081",
+          "protocol": "tcp"
+        }
+      ],
+      "restart": "unless-stopped",
+      "healthcheck": {
+        "test": [
+          "CMD-SHELL",
+          "wget -q -O - http://localhost:8081/health >/dev/null"
+        ],
+        "interval": "5s",
+        "timeout": "3s",
+        "retries": 30,
+        "start_period": "30s"
+      }
+    },
+    "inventory-service": {
+      "build": {
+        "context": ".",
+        "dockerfile": "inventory-service/Dockerfile"
+      },
+      "command": null,
+      "container_name": "store-inventory-service",
+      "depends_on": {
+        "kafka": {
+          "condition": "service_healthy"
+        },
+        "postgres": {
+          "condition": "service_healthy"
+        },
+        "redis": {
+          "condition": "service_healthy"
+        }
+      },
+      "entrypoint": null,
+      "environment": {
+        "CATALOG_GRPC_HOST": "inventory-service",
+        "JWT_SECRET": "${JWT_SECRET:-local-development-secret-key-change-before-deploy-123456}",
+        "SPRING_DATASOURCE_PASSWORD": "postgrespassword",
+        "SPRING_DATASOURCE_URL": "jdbc:postgresql://postgres:5432/inventory_db",
+        "SPRING_DATASOURCE_USERNAME": "postgres",
+        "SPRING_DATA_REDIS_HOST": "redis",
+        "SPRING_DATA_REDIS_PORT": "6379",
+        "SPRING_KAFKA_BOOTSTRAP_SERVERS": "kafka:29092"
+      },
+      "networks": {
+        "store-network": null
+      },
+      "ports": [
+        {
+          "mode": "ingress",
+          "target": 8083,
+          "published": "8083",
+          "protocol": "tcp"
+        }
+      ],
+      "restart": "unless-stopped",
+      "healthcheck": {
+        "test": [
+          "CMD-SHELL",
+          "wget -q -O - http://localhost:8083/health >/dev/null"
+        ],
+        "interval": "5s",
+        "timeout": "3s",
+        "retries": 30,
+        "start_period": "30s"
+      }
+    },
+    "kafka": {
+      "command": null,
+      "container_name": "store-kafka",
+      "entrypoint": null,
+      "environment": {
+        "CLUSTER_ID": "MkU3OEVBNTcwNTJENDM2Qk",
+        "KAFKA_ADVERTISED_LISTENERS": "PLAINTEXT://kafka:29092,PLAINTEXT_HOST://localhost:9092",
+        "KAFKA_CONTROLLER_LISTENER_NAMES": "CONTROLLER",
+        "KAFKA_CONTROLLER_QUORUM_VOTERS": "1@kafka:29093",
+        "KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS": "0",
+        "KAFKA_INTER_BROKER_LISTENER_NAME": "PLAINTEXT",
+        "KAFKA_LISTENERS": "PLAINTEXT://0.0.0.0:29092,CONTROLLER://0.0.0.0:29093,PLAINTEXT_HOST://0.0.0.0:9092",
+        "KAFKA_LISTENER_SECURITY_PROTOCOL_MAP": "CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT",
+        "KAFKA_LOG_DIRS": "/tmp/kraft-combined-logs",
+        "KAFKA_NODE_ID": "1",
+        "KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR": "1",
+        "KAFKA_PROCESS_ROLES": "broker,controller",
+        "KAFKA_TRANSACTION_STATE_LOG_MIN_ISR": "1",
+        "KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR": "1"
+      },
+      "image": "confluentinc/cp-kafka:7.5.0",
+      "networks": {
+        "store-network": null
+      },
+      "ports": [
+        {
+          "mode": "ingress",
+          "target": 9092,
+          "published": "9092",
+          "protocol": "tcp"
+        },
+        {
+          "mode": "ingress",
+          "target": 29092,
+          "published": "29092",
+          "protocol": "tcp"
+        }
+      ],
+      "restart": "unless-stopped",
+      "healthcheck": {
+        "test": [
+          "CMD-SHELL",
+          "kafka-topics --bootstrap-server localhost:29092 --list >/dev/null 2>&1"
+        ],
+        "interval": "10s",
+        "timeout": "10s",
+        "retries": 20
+      }
+    },
+    "kafka-ui": {
+      "command": null,
+      "container_name": "store-kafka-ui",
+      "depends_on": {
+        "kafka": {
+          "condition": "service_started",
+          "required": true
+        }
+      },
+      "entrypoint": null,
+      "environment": {
+        "KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS": "kafka:29092",
+        "KAFKA_CLUSTERS_0_NAME": "local-cluster"
+      },
+      "image": "provectuslabs/kafka-ui:latest",
+      "networks": {
+        "store-network": null
+      },
+      "ports": [
+        {
+          "mode": "ingress",
+          "target": 8080,
+          "published": "8085",
+          "protocol": "tcp"
+        }
+      ],
+      "restart": "unless-stopped"
+    },
+    "order-service": {
+      "build": {
+        "context": ".",
+        "dockerfile": "order-service/Dockerfile"
+      },
+      "command": null,
+      "container_name": "store-order-service",
+      "depends_on": {
+        "kafka": {
+          "condition": "service_healthy"
+        },
+        "postgres": {
+          "condition": "service_healthy"
+        },
+        "redis": {
+          "condition": "service_healthy"
+        }
+      },
+      "entrypoint": null,
+      "environment": {
+        "CATALOG_GRPC_HOST": "inventory-service",
+        "JWT_SECRET": "${JWT_SECRET:-local-development-secret-key-change-before-deploy-123456}",
+        "SPRING_DATASOURCE_PASSWORD": "postgrespassword",
+        "SPRING_DATASOURCE_URL": "jdbc:postgresql://postgres:5432/order_db",
+        "SPRING_DATASOURCE_USERNAME": "postgres",
+        "SPRING_DATA_REDIS_HOST": "redis",
+        "SPRING_DATA_REDIS_PORT": "6379",
+        "SPRING_KAFKA_BOOTSTRAP_SERVERS": "kafka:29092"
+      },
+      "networks": {
+        "store-network": null
+      },
+      "ports": [
+        {
+          "mode": "ingress",
+          "target": 8082,
+          "published": "8082",
+          "protocol": "tcp"
+        }
+      ],
+      "restart": "unless-stopped",
+      "healthcheck": {
+        "test": [
+          "CMD-SHELL",
+          "wget -q -O - http://localhost:8082/health >/dev/null"
+        ],
+        "interval": "5s",
+        "timeout": "3s",
+        "retries": 30,
+        "start_period": "30s"
+      }
+    },
+    "postgres": {
+      "command": null,
+      "container_name": "store-postgres",
+      "entrypoint": null,
+      "environment": {
+        "POSTGRES_DB": "postgres",
+        "POSTGRES_MULTIPLE_DATABASES": "auth_db,order_db,inventory_db,payment_db,delivery_db",
+        "POSTGRES_PASSWORD": "postgrespassword",
+        "POSTGRES_USER": "postgres"
+      },
+      "image": "postgres:16-alpine",
+      "networks": {
+        "store-network": null
+      },
+      "ports": [
+        {
+          "mode": "ingress",
+          "target": 5432,
+          "published": "5433",
+          "protocol": "tcp"
+        }
+      ],
+      "volumes": [
+        {
+          "type": "volume",
+          "source": "postgres_data",
+          "target": "/var/lib/postgresql/data",
+          "volume": {}
+        },
+        {
+          "type": "bind",
+          "source": "./init-multiple-dbs.sh",
+          "target": "/docker-entrypoint-initdb.d/init-multiple-dbs.sh",
+          "bind": {}
+        }
+      ],
+      "restart": "unless-stopped",
+      "healthcheck": {
+        "test": [
+          "CMD-SHELL",
+          "pg_isready -U postgres -d postgres"
+        ],
+        "interval": "5s",
+        "timeout": "3s",
+        "retries": 20
+      }
+    },
+    "redis": {
+      "command": null,
+      "container_name": "store-redis",
+      "entrypoint": null,
+      "image": "redis:7-alpine",
+      "networks": {
+        "store-network": null
+      },
+      "ports": [
+        {
+          "mode": "ingress",
+          "target": 6379,
+          "published": "6379",
+          "protocol": "tcp"
+        }
+      ],
+      "volumes": [
+        {
+          "type": "volume",
+          "source": "redis_data",
+          "target": "/data",
+          "volume": {}
+        }
+      ],
+      "restart": "unless-stopped",
+      "healthcheck": {
+        "test": [
+          "CMD",
+          "redis-cli",
+          "ping"
+        ],
+        "interval": "5s",
+        "timeout": "3s",
+        "retries": 20
+      }
+    }
+  },
+  "volumes": {
+    "postgres_data": {
+      "name": "store_postgres_data"
+    },
+    "redis_data": {
+      "name": "store_redis_data"
+    }
+  }
+}

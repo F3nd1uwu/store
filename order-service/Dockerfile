@@ -5,6 +5,7 @@ WORKDIR /app
 # Копируем файлы сборщика и исходный код всего проекта
 COPY gradlew .
 COPY gradle gradle
+COPY contracts contracts
 COPY build.gradle.kts settings.gradle.kts .
 COPY order-service order-service
 COPY auth-service auth-service
