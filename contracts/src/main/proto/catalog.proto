@@ -1,0 +1,5 @@
+syntax = "proto3";
+package store;
+import "google/protobuf/wrappers.proto";
+// Request: product UUID. Response: JSON {id,title,price,currency,quantity}.
+service Catalog { rpc Quote(google.protobuf.StringValue) returns (google.protobuf.StringValue); }

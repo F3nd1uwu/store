@@ -1,0 +1,19 @@
+services:
+  auth-service:
+    build:
+      context: .
+      dockerfile: Dockerfile.runtime
+      args:
+        SERVICE: auth-service
+  order-service:
+    build:
+      context: .
+      dockerfile: Dockerfile.runtime
+      args:
+        SERVICE: order-service
+  inventory-service:
+    build:
+      context: .
+      dockerfile: Dockerfile.runtime
+      args:
+        SERVICE: inventory-service

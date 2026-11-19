@@ -5,6 +5,16 @@ plugins {
 }
 
 dependencies {
+ implementation(project(":order-service:domain"))
+ implementation(project(":order-service:application"))
+
+    implementation(project(":contracts"))
+    implementation("io.grpc:grpc-netty-shaded")
+    implementation("io.grpc:grpc-protobuf")
+    implementation("io.grpc:grpc-stub")
+
+    implementation("org.springframework.boot:spring-boot-starter-security")
+    implementation("org.springframework.boot:spring-boot-starter-oauth2-resource-server")
     implementation("org.springframework.boot:spring-boot-starter-web")
     implementation("org.springframework.boot:spring-boot-starter-data-jpa")
     implementation("org.springframework.boot:spring-boot-starter-validation")
@@ -21,3 +31,4 @@ dependencies {
 tasks.named<Jar>("jar") {
     enabled = false
 }
+sourceSets { main { java { exclude("ru/web/store/order/domain/**", "ru/web/store/order/application/**") } } }

@@ -1,10 +1,11 @@
 package ru.web.store.order.domain.repository;
 
-import ru.web.store.order.domain.model.Order;
 import java.util.Optional;
 import java.util.UUID;
+import ru.web.store.order.domain.model.Order;
 
 public interface OrderRepository {
-    Order save(Order order);
-    Optional<Order> findById(UUID id);
+  Order save(Order order);
+
+  Optional<Order> findById(UUID id);
 }
