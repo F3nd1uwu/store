@@ -1,3 +1,9 @@
 .git
 .gradle
 .idea
+.env
+.env.*
+!.env.example
+*.key
+*.pem
+build/store-yasakovd-release.zip

@@ -1,10 +1,15 @@
 """Integration checks against the running Compose stack; creates isolated test records."""
 import json, time, uuid, urllib.request, urllib.error, os
 host = os.environ.get("TEST_HOST", "localhost")
+api_base = os.environ.get("API_BASE_URL", "").rstrip("/")
+compose = ["docker", "compose"]
+for compose_file in os.environ.get("COMPOSE_FILES", "docker-compose.yml").split(","):
+    compose.extend(["-f", compose_file])
 def request(port, path, body=None, token=None, expected=200, method=None):
     headers={"Content-Type":"application/json"}
     if token: headers["Authorization"]="Bearer "+token
-    req=urllib.request.Request(f"http://{host}:{port}/api/v1/{path}",data=json.dumps(body).encode() if body is not None else None,headers=headers,method=method)
+    base = api_base or f"http://{host}:{port}"
+    req=urllib.request.Request(f"{base}/api/v1/{path}",data=json.dumps(body).encode() if body is not None else None,headers=headers,method=method)
     try:
         with urllib.request.urlopen(req,timeout=10) as res:
             assert res.status==expected,(res.status,expected)
@@ -66,8 +71,8 @@ assert request(8083,"products/"+product["id"],token=token)["quantity"]==3
 
 # Duplicate the exact original event; inbox must prevent second debit/reserve
 import subprocess
-payload=subprocess.check_output(["docker","compose","exec","-T","postgres","psql","-U","postgres","-d","order_db","-Atc",f"SELECT payload FROM outbox_events WHERE aggregate_id='{order['orderId']}'"],text=True).strip()
-subprocess.run(["docker","exec","-i","store-kafka","kafka-console-producer","--bootstrap-server","kafka:29092","--topic","store.order.v1"],input=payload+"\n",text=True,check=True,stdout=subprocess.DEVNULL)
+payload=subprocess.check_output([*compose,"exec","-T","postgres","psql","-U","postgres","-d","order_db","-Atc",f"SELECT payload FROM outbox_events WHERE aggregate_id='{order['orderId']}'"],text=True).strip()
+subprocess.run([*compose,"exec","-T","-e","KAFKA_HEAP_OPTS=-Xms16m -Xmx64m","kafka","kafka-console-producer","--bootstrap-server","kafka:29092","--topic","store.order.v1"],input=payload+"\n",text=True,check=True,stdout=subprocess.DEVNULL)
 time.sleep(4)
 assert request(8083,"products/"+product["id"],token=token)["quantity"]==3
 assert float(request(8083,"wallet",token=token)["balance"])==80

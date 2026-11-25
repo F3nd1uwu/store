@@ -3,7 +3,7 @@ from pathlib import Path
 import zipfile
 root=Path(__file__).resolve().parents[1]
 output=root/"build"/"store-yasakovd-release.zip"
-files=["Dockerfile.runtime","docker-compose.prod.yml","docker-compose.proxy.yml","init-multiple-dbs.sh","deploy/nginx.conf","scripts/deploy-manual.sh",".env.example","docs/deployment.md"]
+files=["Dockerfile.runtime",".dockerignore","docker-compose.prod.yml","docker-compose.proxy.yml","init-multiple-dbs.sh","deploy/nginx.conf","scripts/deploy-manual.sh","scripts/integration.py",".env.example","docs/deployment.md","docs/deployment-result.md"]
 for service in ["auth-service","order-service","inventory-service"]:
     jars=list((root/service/"build"/"libs").glob("*.jar"))
     if len(jars)!=1:raise SystemExit(f"Run Gradle bootJar first: {service}")

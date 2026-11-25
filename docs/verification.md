@@ -23,7 +23,7 @@ Compose с docker-compose.local.yml успешно собрал runtime-обра
 9. Точное повторение ORDER_CREATED из outbox с тем же eventId через Kafka console producer: повторного уменьшения остатков и баланса нет.
 10. Два конкурентных заказа на последнюю единицу: один PAID, второй CANCELLED, остаток 0.
 
-Скрипт создаёт уникальные тестовые записи и не удаляет их. Запуск рассчитан на локальный/CI Compose с открытыми HTTP-портами и доступным Docker CLI. На сервере через домен применяются ручные API-сценарии из presentation.md.
+Скрипт создаёт уникальные тестовые записи и не удаляет их. Запуск рассчитан на локальный/CI Compose с открытыми HTTP-портами и доступным Docker CLI. Для серверного прогона заданы API_BASE_URL и COMPOSE_FILES; PostgreSQL и Kafka проверяются через exec в нужном Compose-проекте.
 
 ## Проверки серверной конфигурации
 
@@ -33,6 +33,6 @@ Production Compose вместе с proxy override прошёл `docker compose c
 
 ## Границы подтверждения
 
-GitHub Actions CI успешно выполнен для commit 3e79d7ce64b1f73b73bed0e69ec271c2d3d095bd в ветке feature/saga-inventory-service: unit-tests, assemble и integration-tests завершились success. [Запуск и artifacts](https://github.com/F3nd1uwu/store/actions/runs/44056814481). package-images пропущен согласно условию публикации только после push в основную ветку. Оба workflow также прошли локальную проверку actionlint v1.7.12. На сервер 136.234.238.30 приложение в этой сессии не загружалось: выбран ручной деплой пользователем. Команды, путь /home/yasakovd, подключение к NPM и домен yasakovd.9593647-gu32875.twc1.net описаны в deployment.md. Успешный локальный прогон не заменяет проверку ресурсов и окружения общего сервера.
+GitHub Actions CI успешно выполнен для commit 3e79d7ce64b1f73b73bed0e69ec271c2d3d095bd в ветке feature/saga-inventory-service: unit-tests, assemble и integration-tests завершились success. [Запуск и artifacts](https://github.com/F3nd1uwu/store/actions/runs/44056814481). package-images пропущен согласно условию публикации только после push в основную ветку. Оба workflow также прошли локальную проверку actionlint v1.7.12. 25 ноября 2026 года приложение развёрнуто на сервере 136.234.238.30; полный интеграционный сценарий повторён через публичный HTTPS-домен с результатом PASS. [Отчёт о серверной проверке](deployment-result.md). Команды, путь /home/yasakovd, подключение к NPM и домен yasakovd.9593647-gu32875.twc1.net описаны в deployment.md. Успешный локальный прогон не заменяет проверку ресурсов и окружения общего сервера.
 
 Не проводились нагрузочные тесты, проверка длительного простоя брокера и отказа целого узла. Сага не имеет автоматического общего таймаута; сообщение с постоянной ошибкой требует вмешательства. Эти ограничения описаны в saga.md.

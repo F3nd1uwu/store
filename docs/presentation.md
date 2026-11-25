@@ -44,7 +44,7 @@ docker compose exec redis redis-cli --scan --pattern 'products::*'
 
 ## 8. CI/CD
 
-Откройте .github/workflows/ci.yml. Объясните цепочку unit-tests → assemble → integration-tests → package-images и отдельный ручной workflow .github/workflows/deploy.yml. В Actions доступны отчёты тестов и архив ручного деплоя; Docker-образы публикуются в GHCR после успешного push в main. Покажите production Compose, где образы имеют immutable tag commit SHA, а секреты поступают из .env сервера. Если внешний сервер ещё не настроен, обозначьте этот факт: конфигурация deployment подготовлена, фактический запуск требует окружения.
+Откройте .github/workflows/ci.yml. Объясните цепочку unit-tests → assemble → integration-tests → package-images и отдельный ручной workflow .github/workflows/deploy.yml. В Actions доступны отчёты тестов и архив ручного деплоя; Docker-образы публикуются в GHCR после успешного push в main. Покажите production Compose, где образы имеют immutable tag commit SHA, а секреты поступают из .env сервера. Откройте действующий адрес https://yasakovd.9593647-gu32875.twc1.net/health и отчёт deployment-result.md: серверный запуск выполнен 25 ноября 2026 года, полный сценарий проверен через HTTPS.
 
 ## Вопросы и ответы
 

@@ -1,5 +1,7 @@
 # Сборка и деплой
 
+Текущий стенд развёрнут 25 ноября 2026 года. [Адрес и результаты серверной проверки](deployment-result.md). Сеть NPM на данном сервере — nginx-proxy.
+
 ## Локальная сборка
 
 JDK 21. `gradlew.bat test bootJar` на Windows или `./gradlew test bootJar` на Linux. Gradle Wrapper скачивает нужную версию Gradle. Boot JAR каждого сервиса содержит зависимости внутренних domain/application модулей и contracts.
@@ -171,3 +173,7 @@ Actions → Deploy production → Run workflow. Выберите основну�
 Общий сервер и стек преподавателя не пересоздаются. Production Compose изолирует приложение префиксом store-yasakovd. PostgreSQL/Redis/Kafka и backend REST-порты не публикуются наружу. Gateway присоединяется к существующей сети NPM; домен направляется на store-yasakovd-api:80.
 
 Один Kafka broker и один PostgreSQL — учебная топология. Реальные secrets не попадают в release archive. Результаты локальных проверок приведены в verification.md; фактический запуск Actions виден во вкладке Actions после отправки кода на GitHub.
+
+## Проверка действующего стенда
+
+Интеграционный скрипт поддерживает API_BASE_URL для единого публичного адреса и COMPOSE_FILES для production/proxy. Полная команда и фактические результаты приведены в deployment-result.md. Production Compose содержит ограничения JVM/контейнеров для общего сервера с 4 ГБ RAM и отдельный постоянный том Kafka. Ручной deployment script берёт имя проекта, registry и release tag из .env, если они не переданы через окружение.
